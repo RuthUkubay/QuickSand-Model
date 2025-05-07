@@ -110,8 +110,6 @@ pred noHosts[cp: Compute_Proclet] {
     }
 }
 
-//DOES NOT HANDLE SITUATION WHERE NOT PLACED AT STARTIME AND IS PLACED AFTER - BECAUSE THEN WON'T BE DONE RUNNING BY STARTIME PLUS RUNTIME
-//ADD VARIABLE TO HANDLE THIS?? UGH
 pred procletStateEvolves {
     all cp: Compute_Proclet | {
 
@@ -206,4 +204,4 @@ pred traces {
 
 run {
     traces
-}
+} for exactly 3 Machine, exactly 10 Proclet, exactly 5 Compute_Proclet, exactly 5 Memory_Proclet
