@@ -26,7 +26,7 @@ sig Compute_Proclet extends Proclet {
     var runtime: one Int, //number of states it should run for
     var runState: one Run_State,
     var stepsRunning: one Int, // number of states it has been running for
-    var stepsBeforeRun: one Int
+    var stepsBeforeRun: one Int // number of states it has been waiting to run for
 }
 
 sig Memory_Proclet extends Proclet {
@@ -133,7 +133,7 @@ pred procletStateEvolves {
                 cp.location' = m
                 m.free_compute' = subtract[m.free_compute, cp.compute]
                 m.proclets' = m.proclets + cp
-                cp.stepsRunning' = add[cp.stepsRunning, 1]
+                cp.stepsRunning' = cp.stepsRunning
                 cp.stepsBeforeRun' = cp.stepsBeforeRun
 
                 //place corresponding memory proclets and update states
@@ -189,8 +189,6 @@ pred procletStateEvolves {
         }
 
     }
-
-
 }
 
 pred traces {
