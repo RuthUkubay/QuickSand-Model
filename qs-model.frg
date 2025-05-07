@@ -4,10 +4,6 @@ option min_tracelength 5
 
 ---------- Definitions ----------
 
-one sig T {
-    var time: one Int
-}
-
 sig Machine {
     var total_mem: one Int,
     var free_mem: one Int,
@@ -27,8 +23,10 @@ sig Compute_Proclet extends Proclet {
     var compute: one Int, //amount of compute (decide on what this represents)
     var memory_procs: set Memory_Proclet, // set of memory proclets it needs to access data from
     var starttime: one Int, //represents state where proclet starts running
-    var runtime: one Int, //number of states it is running for
-    var runState: one Run_State
+    var runtime: one Int, //number of states it should run for
+    var runState: one Run_State,
+    var stepsRunning: one Int, // number of states it has been running for
+    var stepsBeforeRun: one Int
 }
 
 sig Memory_Proclet extends Proclet {
@@ -90,9 +88,12 @@ pred validState {
 
 pred init {
     all m: Machine | m.proclets = none
-    all cp: Compute_Proclet | cp.runState = Not_Yet_Run
+    all cp: Compute_Proclet | {
+        cp.runState = Not_Yet_Run
+        cp.stepsRunning = 0
+        cp.stepsBeforeRun = 0
+    }
     all p: Proclet | p.location = none
-    T.time = 0
 }
 
 pred final {
@@ -112,19 +113,21 @@ pred noHosts[cp: Compute_Proclet] {
 //DOES NOT HANDLE SITUATION WHERE NOT PLACED AT STARTIME AND IS PLACED AFTER - BECAUSE THEN WON'T BE DONE RUNNING BY STARTIME PLUS RUNTIME
 //ADD VARIABLE TO HANDLE THIS?? UGH
 pred procletStateEvolves {
-    all cp: Compute_Proclet |
+    all cp: Compute_Proclet | {
 
         // Case 1: not start time yet or no machines with adequate resources to place the proclet
-        (subtract[cp.starttime, 1] > T.time or noHosts[cp]) implies {
+        (subtract[cp.starttime, 1] > cp.stepsBeforeRun or noHosts[cp]) implies {
             cp.runState' = Not_Yet_Run
             cp.location' = none
             all mp: cp.memory_procs | {
                 mp.location' = none
             }
+            cp.stepsBeforeRun' = add[cp.stepsBeforeRun, 1]
+            cp.stepsRunning' = cp.stepsRunning
         } and
 
         // Case 2: not placed and start time and room to place on a machine
-        (cp.runState = Not_Yet_Run and subtract[cp.starttime, 1] <= T.time and not noHosts[cp]) implies {
+        (cp.runState = Not_Yet_Run and subtract[cp.starttime, 1] <= cp.stepsBeforeRun and not noHosts[cp]) implies {
             some m: Machine | {
                 //place compute proclet and update state and machine
                 m.free_compute >= cp.compute
@@ -132,6 +135,8 @@ pred procletStateEvolves {
                 cp.location' = m
                 m.free_compute' = subtract[m.free_compute, cp.compute]
                 m.proclets' = m.proclets + cp
+                cp.stepsRunning' = add[cp.stepsRunning, 1]
+                cp.stepsBeforeRun' = cp.stepsBeforeRun
 
                 //place corresponding memory proclets and update states
                 all mp: cp.memory_procs | {
@@ -146,21 +151,25 @@ pred procletStateEvolves {
         } and
 
         // Case 3: Running and not terminating yet
-        (cp.runState = Running and subtract[add[cp.starttime, cp.runtime], 1] > T.time) implies {
+        (cp.runState = Running and subtract[cp.runtime, 1] > cp.stepsRunning) implies {
             cp.runState' = Running
             cp.location' = cp.location
             all mp: cp.memory_procs | {
                 mp.location' = mp.location
             }
+            cp.stepsRunning' = add[cp.stepsRunning, 1]
+            cp.stepsBeforeRun' = cp.stepsBeforeRun
         } and
 
         // Case 4: Running and Terminating on next time tick
-        (cp.runState = Running and subtract[add[cp.starttime, cp.runtime], 1] <= T.time) implies {
+        (cp.runState = Running and subtract[cp.runtime, 1] <= cp.stepsRunning) implies {
             //remove compute proclet and update state and machine
             cp.runState' = Finished
             cp.location' = none
             cp.location.free_compute' = add[cp.location.free_compute, cp.compute]
             cp.location.proclets' = cp.location.proclets - cp
+            cp.stepsRunning' = cp.stepsRunning
+            cp.stepsBeforeRun' = cp.stepsBeforeRun
 
             //remove corresponding memory proclets and update states
             all mp: cp.memory_procs | {
@@ -174,22 +183,22 @@ pred procletStateEvolves {
         (cp.runState = Finished) implies {
             cp.runState' = Finished
             cp.location' = none
+            cp.stepsRunning' = cp.stepsRunning
+            cp.stepsBeforeRun' = cp.stepsBeforeRun
             all mp: cp.memory_procs | {
                 mp.location' = none
             }
         }
 
-}
+    }
 
-pred timeEvolves {
-    T.time' = add[T.time, 1]
+
 }
 
 pred traces {
     init
     always {
         validState
-        timeEvolves
         procletStateEvolves
     }
     eventually final
