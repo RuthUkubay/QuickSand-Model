@@ -949,7 +949,7 @@ test suite for traces {
                 exactly 2 Memory_Proclet
     
     // Test for scheduling fairness - proclets that can run eventually do run
-    validStateTransitions:
+    validStateTransitionsForTraces:
         assert {
         // If resources are available and a proclet is ready, it eventually runs
         always {
@@ -998,5 +998,25 @@ test suite for traces {
                 exactly 1 Machine,
                 exactly 1 Compute_Proclet,
                 exactly 1 Memory_Proclet
-
 }
+
+// Test with limited resources to verify scheduling behavior
+run {
+  traces
+  
+  // Define a small machine with limited resources
+  all m: Machine | {
+    m.total_mem = 12
+    m.total_compute = 5
+  }
+  
+  // Define proclets that collectively need more resources than available
+  all cp: Compute_Proclet | {
+    cp.compute = 3
+    cp.runtime = 2
+  }
+  
+  all mp: Memory_Proclet | {
+    mp.memory = 6
+  }
+} for exactly 7 Int, exactly 1 Machine, exactly 2 Compute_Proclet, exactly 2 Memory_Proclet
