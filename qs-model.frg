@@ -13,7 +13,7 @@ sig Machine {
 }
 
 abstract sig Run_State {}
-sig Running, Finished, Not_Yet_Run extends Run_State {}
+one sig Running, Finished, Not_Yet_Run extends Run_State {}
 
 abstract sig Proclet {
     var location: lone Machine
@@ -110,7 +110,11 @@ pred validStateTimeRelationships {
         (cp.runState = Finished) implies {
             cp.runState' = Finished
         }
-  }
+    }
+
+    all cp: Compute_Proclet | {
+        cp.runState = Finished implies cp.stepsRunning = cp.runtime
+    }
 }
 
 // Ensure a valid state configuration (combines all state invariants)
@@ -230,7 +234,7 @@ pred procletStateEvolves {
         } and
 
         // Case 5: Running and finishing on next time tick
-        (cp.runState = Running and cp.stepsRunning >= cp.runtime) implies {
+        (cp.runState = Running and cp.stepsRunning = subtract[cp.runtime, 1]) implies {
             // Remove compute proclet and update state and machine
             cp.runState' = Finished
             let oldLocation = cp.location | {
@@ -284,36 +288,36 @@ pred traces {
 
 run {
     traces
-} for exactly 1 Machine, exactly 2 Proclet, exactly 1 Compute_Proclet, exactly 1 Memory_Proclet
+} for exactly 2 Machine, exactly 4 Proclet, exactly 2 Compute_Proclet, exactly 2 Memory_Proclet, exactly 5 Int
 
-// test suite for traces {
-//   eventuallyFinishes:
-//     assert {
-//       // “In every trace, every cp eventually reaches Finished.”
-//       always {
-//         all cp: Compute_Proclet |
-//           eventually (cp.runState = Finished)
-//       }
-//     }
-//     is necessary for traces
-//       for exactly 5 Int,
-//           exactly 3 Machine,
-//           exactly 3 Compute_Proclet,
-//           exactly 3 Memory_Proclet
+test suite for traces {
+  eventuallyFinishes:
+    assert {
+      // “In every trace, every cp eventually reaches Finished.”
+      always {
+        all cp: Compute_Proclet |
+          eventually (cp.runState = Finished)
+      }
+    }
+    is necessary for traces
+      for exactly 5 Int,
+          exactly 3 Machine,
+          exactly 3 Compute_Proclet,
+          exactly 3 Memory_Proclet
 
-//     eventuallyStarts:
-//         assert {
-//             always {
-//                 all cp: Compute_Proclet |
-//                 (cp.runState = Not_Yet_Run
-//                 and subtract[cp.starttime, 1] <= cp.stepsBeforeRun)
-//                 implies eventually (cp.runState = Running)
-//             }
-//             }
-//             is necessary for traces
-//             for exactly 3 Machine,
-//                 exactly 2 Compute_Proclet,
-//                 exactly 2 Memory_Proclet,
-//                 exactly 5 Int
+    eventuallyStarts:
+        assert {
+            always {
+                all cp: Compute_Proclet |
+                (cp.runState = Not_Yet_Run
+                and subtract[cp.starttime, 1] <= cp.stepsBeforeRun)
+                implies eventually (cp.runState = Running)
+            }
+            }
+            is necessary for traces
+            for exactly 3 Machine,
+                exactly 2 Compute_Proclet,
+                exactly 2 Memory_Proclet,
+                exactly 5 Int
 
-// }
+}
