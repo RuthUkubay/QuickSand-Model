@@ -295,6 +295,7 @@ test suite for traces {
           exactly 3 Compute_Proclet,
           exactly 3 Memory_Proclet
 
+    // Liveness
     eventuallyStarts:
         assert {
             always {
@@ -309,5 +310,52 @@ test suite for traces {
                 exactly 2 Compute_Proclet,
                 exactly 2 Memory_Proclet,
                 exactly 5 Int
+    safeResources:
+    assert { always validResources }
+      is necessary for traces
+      for exactly 3 Machine,
+          exactly 3 Compute_Proclet,
+          exactly 3 Memory_Proclet,
+          4 Int
+
+    resourceConservation:
+        assert {
+        always {all m: Machine | {
+            m.total_mem = m.free_mem +
+            (sum mp: m.proclets & Memory_Proclet | mp.memory)
+            and
+            m.total_compute = m.free_compute +
+            (sum cp: m.proclets & Compute_Proclet | cp.compute)
+        }
+        }
+        }
+        is necessary for traces
+        for exactly 3 Machine,
+            exactly 2 Compute_Proclet,
+            exactly 2 Memory_Proclet,
+            4 Int
+
+    relConsistency:
+        assert { always validProcletRelationships }
+          is necessary for traces
+          for exactly 3 Machine,
+              exactly 2 Compute_Proclet,
+              exactly 2 Memory_Proclet,
+              4 Int
+
+    locConsistency:
+        assert { always validProcletLocation }
+        is necessary for traces
+        for exactly 3 Machine,
+            exactly 2 Compute_Proclet,
+            exactly 2 Memory_Proclet,
+            4 Int
+
+    termination:
+    assert { eventually final }
+      is necessary for traces
+      for exactly 3 Machine,
+          exactly 3 Compute_Proclet,
+          exactly 3 Memory_Proclet
 
 }
