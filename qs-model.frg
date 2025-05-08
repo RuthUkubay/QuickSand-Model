@@ -309,7 +309,7 @@ run {
   all mp: Memory_Proclet | {
     mp.memory = 6
   }
-} for exactly 5 Int, exactly 1 Machine, exactly 2 Compute_Proclet, exactly 2 Memory_Proclet
+} for exactly 7 Int, exactly 1 Machine, exactly 2 Compute_Proclet, exactly 2 Memory_Proclet
 
 test suite for traces {
   eventuallyFinishes:
