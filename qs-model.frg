@@ -321,11 +321,9 @@ test suite for traces {
     resourceConservation:
         assert {
         always {all m: Machine | {
-            m.total_mem = m.free_mem +
-            (sum mp: m.proclets & Memory_Proclet | mp.memory)
+            m.total_mem = add[m.free_mem, (sum mp: m.proclets & Memory_Proclet | mp.memory)]
             and
-            m.total_compute = m.free_compute +
-            (sum cp: m.proclets & Compute_Proclet | cp.compute)
+            m.total_compute = add[m.free_compute, (sum cp: m.proclets & Compute_Proclet | cp.compute)]
         }
         }
         }
