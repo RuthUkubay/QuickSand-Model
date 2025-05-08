@@ -1,5 +1,7 @@
 #lang forge/temporal
 
+option run_sterling "visualizer.js"
+
 option min_tracelength 5
 
 ---------- Definitions ----------
@@ -187,8 +189,6 @@ pred procletStateEvolves {
             cp.runState' = Not_Yet_Run
             cp.location' = none
             all mp: cp.memory_procs | mp.location' = none
-            //cp.stepsBeforeRun' = add[cp.stepsBeforeRun, 1]
-            //cp.stepsRunning' = cp.stepsRunning
         } and
 
         // Case 2: eligible to start but no resources available yet
@@ -196,8 +196,6 @@ pred procletStateEvolves {
             cp.runState' = Not_Yet_Run
             cp.location' = none
             all mp: cp.memory_procs | mp.location' = none
-            //cp.stepsBeforeRun' = add[cp.stepsBeforeRun, 1]
-            //cp.stepsRunning' = cp.stepsRunning
         } and
 
         // Case 3: eligible to start and resources available
@@ -209,8 +207,6 @@ pred procletStateEvolves {
                 cp.location' = m
                 m.free_compute' = subtract[m.free_compute, cp.compute]
                 m.proclets' = m.proclets + cp
-                //cp.stepsRunning' = cp.stepsRunning // Reset counter as it just started
-                //cp.stepsBeforeRun' = cp.stepsBeforeRun
 
                 // Place corresponding memory proclets and update states
                 all mp: cp.memory_procs | {
@@ -229,8 +225,6 @@ pred procletStateEvolves {
             cp.runState' = Running
             cp.location' = cp.location
             all mp: cp.memory_procs | mp.location' = mp.location
-            //cp.stepsRunning' = add[cp.stepsRunning, 1]
-            //cp.stepsBeforeRun' = cp.stepsBeforeRun
         } and
 
         // Case 5: Running and finishing on next time tick
@@ -242,8 +236,6 @@ pred procletStateEvolves {
                 oldLocation.free_compute' = add[oldLocation.free_compute, cp.compute]
                 oldLocation.proclets' = oldLocation.proclets - cp
             }
-            //cp.stepsRunning' = cp.stepsRunning
-            //cp.stepsBeforeRun' = cp.stepsBeforeRun
 
             // Remove corresponding memory proclets and update states
             all mp: cp.memory_procs | {
@@ -259,8 +251,6 @@ pred procletStateEvolves {
         (cp.runState = Finished) implies {
             cp.runState' = Finished
             cp.location' = none
-            //cp.stepsRunning' = cp.stepsRunning
-            //cp.stepsBeforeRun' = cp.stepsBeforeRun
             all mp: cp.memory_procs | mp.location' = none
         }
     }
