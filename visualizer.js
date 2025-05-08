@@ -25,7 +25,7 @@ function decrementState() {
 
 var state_label = new TextBox({
     text: () => cs_str(),
-    coords: { x: 300, y: 510 },
+    coords: { x: 300, y: 570 },
     fontSize: 20,
     fontWeight: "Bold",
     color: "black",
@@ -35,7 +35,7 @@ stage.add(state_label);
 var prev_button = new TextBox({
     text: "▬",
     color: "gray",
-    coords: { x: 225, y: 550 },
+    coords: { x: 225, y: 600 },
     fontSize: 200,
     events: [
         {
@@ -51,7 +51,7 @@ stage.add(prev_button);
 
 var prev_button_label = new TextBox({
     text: "Previous State",
-    coords: { x: 225, y: 570 },
+    coords: { x: 225, y: 620 },
     fontSize: 15,
     fontWeight: "Bold",
     color: "white",
@@ -70,7 +70,7 @@ stage.add(prev_button_label);
 var next_button = new TextBox({
     text: "▬",
     color: "gray",
-    coords: { x: 375, y: 550 },
+    coords: { x: 375, y: 600 },
     fontSize: 200,
     events: [
         {
@@ -86,7 +86,7 @@ stage.add(next_button);
 
 var next_button_label = new TextBox({
     text: "Next State",
-    coords: { x: 375, y: 570 },
+    coords: { x: 375, y: 620 },
     fontSize: 15,
     fontWeight: "Bold",
     color: "white",
@@ -126,8 +126,8 @@ function render() {
     var placed_proclets = [];
     stage.elements = [];
 
-    let machineWidth = 240;
-    let machineHeight = 160;
+    let machineWidth = 220;
+    let machineHeight = 140;
     let procletWidth = 30;
     let procletHeight = 20;
     let spacing = 20;
@@ -160,7 +160,7 @@ function render() {
             let procletRect = new Rectangle({
                 coords: {
                     x: 60 + (j % 3) * (procletWidth + 5),
-                    y: 80 + i * (machineHeight + spacing) + Math.floor(j / 3) * (procletHeight + 5)
+                    y: 60 + i * (machineHeight + spacing) + Math.floor(j / 3) * (procletHeight + 5)
                 },
                 width: procletWidth,
                 height: procletHeight,
@@ -176,8 +176,8 @@ function render() {
     });
 
     polypoints = [
-        { x: 75 + machineWidth, y: 30 },
-        { x: 75 + machineWidth, y: 450 }
+        { x: 95 + machineWidth, y: 30 },
+        { x: 95 + machineWidth, y: 540 }
     ]
 
     let line = new Line({
@@ -192,14 +192,14 @@ function render() {
 
     stage.add(new TextBox({
         text: 'Machines & Scheduled Proclets:',
-        coords: { x: 170, y: 50 },
+        coords: { x: 170, y: 30 },
         color: 'black',
         fontSize: 16
     }))
 
     stage.add(new TextBox({
         text: 'All Proclets:',
-        coords: { x: 140 + machineWidth, y: 50 },
+        coords: { x: 160 + machineWidth, y: 30 },
         color: 'black',
         fontSize: 16
     }))
@@ -210,7 +210,7 @@ function render() {
         var proclet_name = proclet.toString().replace("[", "");
         let procletRect = new Rectangle({
             coords: {
-                x: 100 + machineWidth + (j % 3) * (procletWidth + 5),
+                x: 120 + machineWidth + (j % 3) * (procletWidth + 5),
                 y: 70 + Math.floor(j / 3) * (procletHeight + 5)
             },
             width: procletWidth,
@@ -230,7 +230,7 @@ function render() {
         var proclet_name = proclet.toString().replace("[", "");
         let procletRect = new Rectangle({
             coords: {
-                x: 100 + machineWidth + (j % 3) * (procletWidth + 5),
+                x: 120 + machineWidth + (j % 3) * (procletWidth + 5),
                 y: 110 + Math.floor(j / 3) * (procletHeight + 5)
             },
             width: procletWidth,

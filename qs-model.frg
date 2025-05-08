@@ -278,7 +278,7 @@ pred traces {
 
 run {
     traces
-} for exactly 2 Machine, exactly 4 Proclet, exactly 2 Compute_Proclet, exactly 2 Memory_Proclet, exactly 5 Int
+} for exactly 3 Machine, exactly 6 Proclet, exactly 3 Compute_Proclet, exactly 3 Memory_Proclet, exactly 5 Int
 
 test suite for traces {
   eventuallyFinishes:
