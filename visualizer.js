@@ -160,7 +160,7 @@ function render() {
             let procletRect = new Rectangle({
                 coords: {
                     x: 60 + (j % 3) * (procletWidth + 5),
-                    y: 60 + i * (machineHeight + spacing) + Math.floor(j / 3) * (procletHeight + 5)
+                    y: 80 + i * (machineHeight + spacing) + Math.floor(j / 3) * (procletHeight + 5)
                 },
                 width: procletWidth,
                 height: procletHeight,
