@@ -311,6 +311,39 @@ run {
   }
 } for exactly 7 Int, exactly 1 Machine, exactly 2 Compute_Proclet, exactly 2 Memory_Proclet
 
+// Helper predicate to set up basic test environment
+pred setupBasicEnvironment {
+    // Create machines
+    some m1: Machine | {
+        m1.total_mem = 4
+        m1.free_mem = 4
+        m1.total_compute = 2
+        m1.free_compute = 2
+    }
+    
+    // Basic constraints to ensure reasonable values
+    all cp: Compute_Proclet | {
+        cp.compute > 0
+        cp.starttime >= 0
+        cp.runtime > 0
+        cp.stepsRunning >= 0
+        cp.stepsBeforeRun >= 0
+    }
+    
+    all m: Machine | {
+        m.total_mem > 0
+        m.free_mem >= 0
+        m.free_mem <= m.total_mem
+        m.total_compute > 0
+        m.free_compute >= 0
+        m.free_compute <= m.total_compute
+    }
+    
+    all mp: Memory_Proclet | {
+        mp.memory > 0
+    }
+}
+
 test suite for traces {
   eventuallyFinishes:
     assert {

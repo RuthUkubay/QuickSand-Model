@@ -484,155 +484,356 @@ test suite for validProcletRelationships {
     }
 }
 
-test suite for validState {
-    // Test 1: Valid basic state with all constraints satisfied
-    // test expect {
-    //     validBasicState: {
-    //         // Create machine with resources
-    //         some m: Machine | {
-    //             m.total_mem = 10
-    //             m.free_mem = 4
-    //             m.total_compute = 8
-    //             m.free_compute = 3
-                
-    //             // Create memory and compute proclets with valid relationships
-    //             some mp: Memory_Proclet, cp: Compute_Proclet | {
-    //                 // Resource requirements
-    //                 mp.memory = 6             // Uses 6 memory
-    //                 cp.compute = 5            // Uses 5 compute
-                    
-    //                 // Location assignments
-    //                 mp.location = m
-    //                 cp.location = m
-    //                 m.proclets = {mp + cp}   // Both proclets assigned to machine
-                    
-    //                 // Proclet relationships
-    //                 mp in cp.memory_procs
-    //                 cp in mp.compute_procs
-                    
-    //                 // Valid state values
-    //                 cp.starttime = 1
-    //                 cp.runtime = 3
-    //                 cp.stepsRunning = 2
-    //                 cp.stepsBeforeRun = 0
-    //                 cp.runState = Running
-    //             }
-    //         }
-            
-    //         // All individual predicates should be satisfied
-    //         validResources
-    //         validProcletLocation
-    //         resourcesMatchUsage
-    //         validProcletRelationships
-    //         validState
-    //     } for 5 Int is sat
-    // }
-    
-    // Test 2: Valid complex state with multiple machines and proclets
+test suite for validStateTimeRelationships {
+    // Test 1: Valid Not_Yet_Run case
     test expect {
-        validComplexState: {
-            // Create two machines
-            some disj m1, m2: Machine | {
-                // Machine 1 resources
-                m1.total_mem = 8
-                m1.free_mem = 2
-                m1.total_compute = 6
-                m1.free_compute = 1
-                
-                // Machine 2 resources
-                m2.total_mem = 10
-                m2.free_mem = 3
-                m2.total_compute = 8
-                m2.free_compute = 2
-                
-                // Create proclets with valid properties and relationships
-                some disj mp1, mp2: Memory_Proclet | some disj cp1, cp2: Compute_Proclet | {
-                    // Resource requirements
-                    mp1.memory = 6
-                    mp2.memory = 7
-                    cp1.compute = 5
-                    cp2.compute = 6
-                    
-                    // Location assignments
-                    mp1.location = m1
-                    cp1.location = m1
-                    mp2.location = m2
-                    cp2.location = m2
-                    m1.proclets = {mp1 + cp1}
-                    m2.proclets = {mp2 + cp2}
-                    
-                    // Proclet relationships - each memory proclet referenced by at least one compute proclet
-                    mp1 in cp1.memory_procs
-                    cp1 in mp1.compute_procs
-                    mp2 in cp2.memory_procs
-                    cp2 in mp2.compute_procs
-                    
-                    // Valid state values
-                    cp1.starttime = 1
-                    cp1.runtime = 3
-                    cp1.stepsRunning = 1
-                    cp1.stepsBeforeRun = 0
-                    cp1.runState = Running
-                    
-                    cp2.starttime = 2
-                    cp2.runtime = 4
-                    cp2.stepsRunning = 2
-                    cp2.stepsBeforeRun = 1
-                    cp2.runState = Running
-                }
+        validNotYetRunCase: {
+            some cp: Compute_Proclet | {
+                cp.starttime = 3
+                cp.stepsBeforeRun = 2  // stepsBeforeRun < starttime
+                cp.runState = Not_Yet_Run
+                no cp.location
+                cp.runtime = 5
+                cp.stepsRunning = 0
             }
-            
-            validState
-        } for 5 Int is sat
+            validStateTimeRelationships
+        } is sat
     }
-    
-    // Test 3: Invalid state due to resource mismatch
+
+    // Test 2: Valid Running case
     test expect {
-        invalidResourceMismatch: {
+        validRunningCase: {
+            some m: Machine | some cp: Compute_Proclet | {
+                cp.starttime = 3
+                cp.stepsBeforeRun = 3  // stepsBeforeRun >= starttime
+                cp.runState = Running
+                cp.location = m
+                cp.runtime = 5
+                cp.stepsRunning = 2
+            }
+            validStateTimeRelationships
+        } is sat
+    }
+
+    // Test 3: Valid Finished case
+    test expect {
+        validFinishedCase: {
+            some cp: Compute_Proclet | {
+                cp.starttime = 3
+                cp.stepsBeforeRun = 3
+                cp.runState = Finished
+                no cp.location
+                cp.runtime = 5
+                cp.stepsRunning = 5  // stepsRunning = runtime
+            }
+            validStateTimeRelationships
+        } is sat
+    }
+
+    // Test 4: Invalid Not_Yet_Run with location
+    test expect {
+        invalidNotYetRunWithLocation: {
+            some m: Machine | some cp: Compute_Proclet | {
+                cp.starttime = 3
+                cp.stepsBeforeRun = 2
+                cp.runState = Not_Yet_Run
+                cp.location = m  // Not_Yet_Run shouldn't have location
+            }
+            validStateTimeRelationships
+        } is unsat
+    }
+
+    // Test 5: Invalid Running without location
+    test expect {
+        invalidRunningNoLocation: {
+            some cp: Compute_Proclet | {
+                cp.runState = Running
+                no cp.location  // Running must have location
+            }
+            validStateTimeRelationships
+        } is unsat
+    }
+
+    // Test 6: Valid transition Not_Yet_Run -> Running
+    test expect {
+        validTransitionToRunning: {
+            some m: Machine | some cp: Compute_Proclet | {
+                cp.runState = Not_Yet_Run
+                no cp.location
+                cp.runState' = Running
+                cp.location' = m
+            }
+            always {validStateTimeRelationships}
+        } is sat
+    }
+
+    // Test 7: Invalid direct transition Not_Yet_Run -> Finished
+    test expect {
+        invalidDirectToFinished: {
+            some cp: Compute_Proclet | {
+                cp.runState = Not_Yet_Run
+                cp.runState' = Finished  // Must go through Running first
+            }
+            always {validStateTimeRelationships}
+        } is unsat
+    }
+
+    test expect {
+        finishedStaysFinished: {
+            some cp: Compute_Proclet | {
+                cp.runState = Finished
+                cp.runState' = Finished  // Must stay Finished
+                no cp.location
+                no cp.location'
+                cp.stepsRunning = cp.runtime
+                cp.stepsRunning' = cp.runtime
+            }
+            always {validStateTimeRelationships}
+        } is sat
+
+        invalidFinishedChanges: {
+            some cp: Compute_Proclet | {
+                cp.runState = Finished
+                cp.runState' != Finished  // Should be impossible
+            }
+            always {validStateTimeRelationships}
+        } is unsat
+    }
+
+}
+
+test suite for validState {
+    // Test 1: Basic valid state
+    test expect {
+        validBasicState: {
             some m: Machine | {
                 m.total_mem = 10
-                m.free_mem = 5          // Incorrect: should be 4 based on memory usage
+                m.free_mem = 6
                 m.total_compute = 8
-                m.free_compute = 3
-                
-                some mp: Memory_Proclet, cp: Compute_Proclet | {
-                    // Resource requirements
-                    mp.memory = 6       // Uses 6 memory
-                    cp.compute = 5      // Uses 5 compute
-                    
-                    // Location assignments
-                    mp.location = m
+                m.free_compute = 5
+            }
+            some cp: Compute_Proclet | {
+                cp.compute = 3
+                cp.starttime = 2
+                cp.runtime = 5
+                cp.stepsRunning = 0
+                cp.stepsBeforeRun = 1
+                cp.runState = Not_Yet_Run
+                no cp.location
+            }
+            some mp: Memory_Proclet | {
+                mp.memory = 4
+                no mp.location
+            }
+            validState
+        } for 6 Int is sat
+    }
+
+    // Test 2: Machine with allocated proclets
+    test expect {
+        validWithAllocations: {
+            some m: Machine | {
+                m.total_mem = 10
+                m.total_compute = 8
+                some cp: Compute_Proclet | {
+                    cp.compute = 3
                     cp.location = m
-                    m.proclets = {mp + cp}
-                    
-                    // Proclet relationships
-                    mp in cp.memory_procs
-                    cp in mp.compute_procs
-                    
-                    // Valid state values
-                    cp.starttime = 1
-                    cp.runtime = 3
-                    cp.stepsRunning = 2
-                    cp.stepsBeforeRun = 0
                     cp.runState = Running
+                    m.free_compute = 5  // 8 - 3 = 5
+                }
+                some mp: Memory_Proclet | {
+                    mp.memory = 4
+                    mp.location = m
+                    m.free_mem = 6  // 10 - 4 = 6
                 }
             }
-            
+            validState
+        } for 6 Int is sat
+    }
+
+    // Test 3: Invalid - negative free memory
+    test expect {
+        invalidNegativeMemory: {
+            some m: Machine | {
+                m.total_mem = 10
+                m.free_mem = -1  // Invalid
+                m.total_compute = 8
+                m.free_compute = 5
+            }
+            validState
+        } for 6 Int is unsat
+    }
+
+    // Test 4: Invalid - proclet not in machine's proclets
+    test expect {
+        invalidProcletLocation: {
+            some m: Machine, p: Proclet | {
+                p.location = m
+                p not in m.proclets  // Invalid location relationship
+            }
             validState
         } is unsat
+    }
+
+    // Test 5: Invalid - compute proclet with zero runtime
+    test expect {
+        invalidZeroRuntimeState: {
+            some cp: Compute_Proclet | {
+                cp.runtime = 0  // Invalid
+                cp.compute > 0
+                cp.starttime > 0
+            }
+            validState
+        } is unsat
+    }
+
+    // Test 6: Invalid - memory proclet with zero memory
+    test expect {
+        invalidZeroMemoryState: {
+            some mp: Memory_Proclet | {
+                mp.memory = 0  // Invalid
+            }
+            validState
+        } is unsat
+    }
+
+    // Test 7: Invalid - resource usage mismatch
+    test expect {
+        invalidResourceUsage: {
+            some m: Machine | {
+                m.total_mem = 10
+                m.total_compute = 8
+                some mp: Memory_Proclet | {
+                    mp.memory = 4
+                    mp.location = m
+                }
+                m.free_mem = 7  // Should be 6 (10 - 4)
+            }
+            validState
+        } for 6 Int is unsat
+    }
+
+    // Test 8: Invalid - inconsistent proclet relationships
+    test expect {
+        invalidProcletRelationships: {
+            some mp: Memory_Proclet, cp: Compute_Proclet | {
+                mp in cp.memory_procs
+                cp not in mp.compute_procs  // Invalid relationship
+            }
+            validState
+        } is unsat
+    }
+
+    // Test 9: Invalid - Running proclet with no location
+    test expect {
+        invalidRunningNoLocationState: {
+            some cp: Compute_Proclet | {
+                cp.runState = Running
+                no cp.location  // Invalid
+            }
+            validState
+        } is unsat
+    }
+
+    // Test 10: Valid temporal transition
+    test expect {
+        validStateTransition: {
+            some m: Machine | some cp: Compute_Proclet | {
+                // Initial state
+                cp.runState = Not_Yet_Run
+                no cp.location
+                cp.stepsBeforeRun < cp.starttime
+                
+                // Next state
+                cp.runState' = Running
+                cp.location' = m
+                m.proclets' = m.proclets + cp
+                m.free_compute' = subtract[m.free_compute, cp.compute]
+            }
+            always {validState}
+        } is sat
     }
 }
 
 test suite for init {
+    test expect {
+        validInitialState: {
+            // At least one machine exists
+            some m: Machine | {
+                m.total_mem = 10
+                m.free_mem = 10
+                m.total_compute = 8
+                m.free_compute = 8
+                no m.proclets
+            }
+            
+            // At least one compute proclet exists
+            some cp: Compute_Proclet | {
+                cp.runState = Not_Yet_Run
+                cp.stepsRunning = 0
+                cp.stepsBeforeRun = 0
+                cp.compute = 3
+                cp.runtime = 5
+                cp.starttime = 2
+                // Verify at least one machine can host it
+                some m: Machine | m.total_compute >= cp.compute
+                // Verify memory requirements can be met
+                all mp: cp.memory_procs | some m: Machine | m.total_mem >= mp.memory
+            }
+            
+            // At least one memory proclet exists
+            some mp: Memory_Proclet | {
+                mp.memory = 4
+                no mp.location
+            }
+            
+            // All proclets are unassigned
+            all p: Proclet | no p.location
+            
+            init
+        } for 5 Int is sat
+        
+        invalidInitialState: {
+            // Machine starts with allocated proclets (should violate init)
+            some m: Machine | some m.proclets
+            init
+        } is unsat
+    }
 
 }
 
 test suite for final {
+    // Test 1: Perfectly valid final state
+    test expect {
+        idealFinalState: {
+            // Machines completely empty
+            all m: Machine | {
+                no m.proclets
+                m.free_mem = m.total_mem  // Bonus: resources fully released
+                m.free_compute = m.total_compute
+            }
+            
+            // All compute proclets properly finished
+            all cp: Compute_Proclet | {
+                cp.runState = Finished
+                no cp.location
+                cp.stepsRunning = cp.runtime  // Completed full duration
+            }
+            
+            // All memory proclets released
+            all mp: Memory_Proclet | no mp.location
+            
+            final
+        } is sat
+    }
 
-}
-
-test suite for noHosts {
-
+    // Test 2: Invalid if any compute proclet not finished
+    test expect {
+        unfinishedComputeProclets: {
+            some cp: Compute_Proclet | cp.runState != Finished
+            final
+        } is unsat
+    }
 }
 
 test suite for procletStateEvolves {
@@ -640,5 +841,162 @@ test suite for procletStateEvolves {
 }
 
 test suite for traces {
+  eventuallyFinishes:
+    assert {
+      // In every trace, every cp eventually reaches Finished.
+      always {
+        all cp: Compute_Proclet |
+          eventually (cp.runState = Finished)
+      }
+    }
+    is necessary for traces
+      for exactly 5 Int,
+          exactly 3 Machine,
+          exactly 3 Compute_Proclet,
+          exactly 3 Memory_Proclet
+
+    eventuallyStarts:
+        assert {
+            always {
+                all cp: Compute_Proclet |
+                (cp.runState = Not_Yet_Run
+                and subtract[cp.starttime, 1] <= cp.stepsBeforeRun)
+                implies eventually (cp.runState = Running)
+            }
+            }
+            is necessary for traces
+            for exactly 3 Machine,
+                exactly 2 Compute_Proclet,
+                exactly 2 Memory_Proclet,
+                exactly 5 Int
+
+    // Test that memory proclets are correctly co-located with their compute proclets
+    // memoryProcletPlacement:
+    //     assert {
+    //         // Memory proclets are properly placed when their compute proclet runs
+    //         always {
+    //             all cp: Compute_Proclet | all mp: cp.memory_procs | 
+    //             (cp.runState = Running implies some mp.location)
+    //         }
+    //     }
+    //     is necessary for traces
+    //     for exactly 5 Int,
+    //         exactly 2 Machine, 
+    //         exactly 2 Compute_Proclet,
+    //         exactly 3 Memory_Proclet
+    // Test that resource constraints are never violated
+    resourceConstraintsHold:
+        assert {
+            // Free resources never go negative
+            always {
+                all m: Machine | {
+                m.free_mem >= 0
+                m.free_compute >= 0
+                }
+            }
+            }
+            is necessary for traces
+            for exactly 5 Int,
+                exactly 2 Machine,
+                exactly 3 Compute_Proclet,
+                exactly 4 Memory_Proclet
+    
+    // Test that when a proclet finishes, resources are properly released
+    // resourcesProperlyReleased:
+    //     assert {
+    //     // When a proclet changes from Running to Finished, resources are released
+    //         always {
+    //             all cp: Compute_Proclet | {
+    //             (cp.runState = Running and cp.runState' = Finished) implies {
+    //                 // Compute resources are released
+    //                 all m: Machine | m = cp.location implies 
+    //                 m.free_compute' = add[m.free_compute, cp.compute]
+                    
+    //                 // Memory resources are released
+    //                 all mp: cp.memory_procs | all m: Machine | m = mp.location implies
+    //                 m.free_mem' = add[m.free_mem, mp.memory]
+    //             }
+    //             }
+    //         }
+    //         }
+    //         is necessary for traces
+    //         for exactly 5 Int,
+    //             exactly 2 Machine,
+    //             exactly 2 Compute_Proclet,
+    //             exactly 2 Memory_Proclet
+
+    // Test that proclets follow their state transitions correctly
+    validStateTransitions:
+        assert {
+            // State transitions follow the specified pattern
+            always {
+                all cp: Compute_Proclet | {
+                // Not_Yet_Run can only transition to Running or stay Not_Yet_Run
+                cp.runState = Not_Yet_Run implies cp.runState' in (Not_Yet_Run + Running)
+                
+                // Running can only transition to Finished or stay Running
+                cp.runState = Running implies cp.runState' in (Running + Finished)
+                
+                // Finished must stay Finished
+                cp.runState = Finished implies cp.runState' = Finished
+                }
+            }
+            }
+            is necessary for traces
+            for exactly 5 Int,
+                exactly 2 Machine,
+                exactly 3 Compute_Proclet,
+                exactly 2 Memory_Proclet
+    
+    // Test for scheduling fairness - proclets that can run eventually do run
+    validStateTransitions:
+        assert {
+        // If resources are available and a proclet is ready, it eventually runs
+        always {
+            all cp: Compute_Proclet | {
+            (cp.runState = Not_Yet_Run and 
+            cp.stepsBeforeRun >= cp.starttime and
+            canSchedule[cp]) implies eventually (cp.runState = Running)
+            }
+        }
+        }
+        is necessary for traces
+        for exactly 5 Int,
+            exactly 2 Machine,
+            exactly 2 Compute_Proclet,
+            exactly 2 Memory_Proclet
+    
+    // Test that memory and compute proclet relationships remain consistent
+    consistentRelationships:
+        assert {
+            // Memory and compute proclet relationships are bidirectional
+            always {
+                all mp: Memory_Proclet | all cp: Compute_Proclet | {
+                mp in cp.memory_procs iff cp in mp.compute_procs
+                }
+            }
+            }
+            is necessary for traces
+            for exactly 5 Int,
+                exactly 1 Machine,
+                exactly 2 Compute_Proclet,
+                exactly 2 Memory_Proclet
+    
+    // Test that compute proclets run for exactly their specified runtime
+    correctRuntimeBehavior:
+        assert {
+            // Proclets run for exactly their specified runtime
+            always {
+                all cp: Compute_Proclet | {
+                (cp.runState = Running and cp.stepsRunning = subtract[cp.runtime, 1]) implies
+                    cp.runState' = Finished
+                }
+            }
+            }
+            is necessary for traces
+            for exactly 5 Int,
+                exactly 1 Machine,
+                exactly 1 Compute_Proclet,
+                exactly 1 Memory_Proclet
 
 }
