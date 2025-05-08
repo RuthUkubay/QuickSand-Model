@@ -286,14 +286,35 @@ pred traces {
     eventually final
 }
 
+// run {
+//     traces
+// } for exactly 2 Machine, exactly 4 Proclet, exactly 2 Compute_Proclet, exactly 2 Memory_Proclet, exactly 5 Int
+
+// Test with limited resources to verify scheduling behavior
 run {
-    traces
-} for exactly 2 Machine, exactly 4 Proclet, exactly 2 Compute_Proclet, exactly 2 Memory_Proclet, exactly 5 Int
+  traces
+  
+  // Define a small machine with limited resources
+  all m: Machine | {
+    m.total_mem = 12
+    m.total_compute = 5
+  }
+  
+  // Define proclets that collectively need more resources than available
+  all cp: Compute_Proclet | {
+    cp.compute = 3
+    cp.runtime = 2
+  }
+  
+  all mp: Memory_Proclet | {
+    mp.memory = 6
+  }
+} for exactly 5 Int, exactly 1 Machine, exactly 2 Compute_Proclet, exactly 2 Memory_Proclet
 
 test suite for traces {
   eventuallyFinishes:
     assert {
-      // “In every trace, every cp eventually reaches Finished.”
+      // In every trace, every cp eventually reaches Finished.
       always {
         all cp: Compute_Proclet |
           eventually (cp.runState = Finished)
@@ -319,5 +340,134 @@ test suite for traces {
                 exactly 2 Compute_Proclet,
                 exactly 2 Memory_Proclet,
                 exactly 5 Int
+
+    // Test that memory proclets are correctly co-located with their compute proclets
+    // memoryProcletPlacement:
+    //     assert {
+    //         // Memory proclets are properly placed when their compute proclet runs
+    //         always {
+    //             all cp: Compute_Proclet | all mp: cp.memory_procs | 
+    //             (cp.runState = Running implies some mp.location)
+    //         }
+    //     }
+    //     is necessary for traces
+    //     for exactly 5 Int,
+    //         exactly 2 Machine, 
+    //         exactly 2 Compute_Proclet,
+    //         exactly 3 Memory_Proclet
+    // Test that resource constraints are never violated
+    resourceConstraintsHold:
+        assert {
+            // Free resources never go negative
+            always {
+                all m: Machine | {
+                m.free_mem >= 0
+                m.free_compute >= 0
+                }
+            }
+            }
+            is necessary for traces
+            for exactly 5 Int,
+                exactly 2 Machine,
+                exactly 3 Compute_Proclet,
+                exactly 4 Memory_Proclet
+    
+    // Test that when a proclet finishes, resources are properly released
+    // resourcesProperlyReleased:
+    //     assert {
+    //     // When a proclet changes from Running to Finished, resources are released
+    //         always {
+    //             all cp: Compute_Proclet | {
+    //             (cp.runState = Running and cp.runState' = Finished) implies {
+    //                 // Compute resources are released
+    //                 all m: Machine | m = cp.location implies 
+    //                 m.free_compute' = add[m.free_compute, cp.compute]
+                    
+    //                 // Memory resources are released
+    //                 all mp: cp.memory_procs | all m: Machine | m = mp.location implies
+    //                 m.free_mem' = add[m.free_mem, mp.memory]
+    //             }
+    //             }
+    //         }
+    //         }
+    //         is necessary for traces
+    //         for exactly 5 Int,
+    //             exactly 2 Machine,
+    //             exactly 2 Compute_Proclet,
+    //             exactly 2 Memory_Proclet
+
+    // Test that proclets follow their state transitions correctly
+    validStateTransitions:
+        assert {
+            // State transitions follow the specified pattern
+            always {
+                all cp: Compute_Proclet | {
+                // Not_Yet_Run can only transition to Running or stay Not_Yet_Run
+                cp.runState = Not_Yet_Run implies cp.runState' in (Not_Yet_Run + Running)
+                
+                // Running can only transition to Finished or stay Running
+                cp.runState = Running implies cp.runState' in (Running + Finished)
+                
+                // Finished must stay Finished
+                cp.runState = Finished implies cp.runState' = Finished
+                }
+            }
+            }
+            is necessary for traces
+            for exactly 5 Int,
+                exactly 2 Machine,
+                exactly 3 Compute_Proclet,
+                exactly 2 Memory_Proclet
+    
+    // Test for scheduling fairness - proclets that can run eventually do run
+    schedulingFairness:
+        assert {
+        // If resources are available and a proclet is ready, it eventually runs
+        always {
+            all cp: Compute_Proclet | {
+            (cp.runState = Not_Yet_Run and 
+            cp.stepsBeforeRun >= cp.starttime and
+            canSchedule[cp]) implies eventually (cp.runState = Running)
+            }
+        }
+        }
+        is necessary for traces
+        for exactly 5 Int,
+            exactly 2 Machine,
+            exactly 2 Compute_Proclet,
+            exactly 2 Memory_Proclet
+    
+    // Test that memory and compute proclet relationships remain consistent
+    consistentRelationships:
+        assert {
+            // Memory and compute proclet relationships are bidirectional
+            always {
+                all mp: Memory_Proclet | all cp: Compute_Proclet | {
+                mp in cp.memory_procs iff cp in mp.compute_procs
+                }
+            }
+            }
+            is necessary for traces
+            for exactly 5 Int,
+                exactly 1 Machine,
+                exactly 2 Compute_Proclet,
+                exactly 2 Memory_Proclet
+    
+    // Test that compute proclets run for exactly their specified runtime
+    correctRuntimeBehavior:
+        assert {
+            // Proclets run for exactly their specified runtime
+            always {
+                all cp: Compute_Proclet | {
+                (cp.runState = Running and cp.stepsRunning = subtract[cp.runtime, 1]) implies
+                    cp.runState' = Finished
+                }
+            }
+            }
+            is necessary for traces
+            for exactly 5 Int,
+                exactly 1 Machine,
+                exactly 1 Compute_Proclet,
+                exactly 1 Memory_Proclet
 
 }
