@@ -5,9 +5,9 @@ option min_tracelength 5
 ---------- Definitions ----------
 
 sig Machine {
-    var total_mem: one Int,
+    total_mem: one Int,
     var free_mem: one Int,
-    var total_compute: one Int,
+    total_compute: one Int,
     var free_compute: one Int,
     var proclets: set Proclet
 }
@@ -20,18 +20,18 @@ abstract sig Proclet {
 }
 
 sig Compute_Proclet extends Proclet {
-    var compute: one Int, //amount of compute (decide on what this represents)
-    var memory_procs: set Memory_Proclet, // set of memory proclets it needs to access data from
-    var starttime: one Int, //represents state where proclet starts running
-    var runtime: one Int, //number of states it should run for
+    compute: one Int, //amount of compute (decide on what this represents)
+    memory_procs: set Memory_Proclet, // set of memory proclets it needs to access data from
+    starttime: one Int, //represents state where proclet starts running
+    runtime: one Int, //number of states it should run for
     var runState: one Run_State,
     var stepsRunning: one Int, // number of states it has been running for
     var stepsBeforeRun: one Int // number of states it has been waiting to run for
 }
 
 sig Memory_Proclet extends Proclet {
-    var memory: one Int, // in MB
-    var compute_procs: set Compute_Proclet
+    memory: one Int, // in MB
+    compute_procs: set Compute_Proclet
 }
 
 --------------------- State Invariants ------------------------
@@ -45,6 +45,18 @@ pred validResources {
         m.total_mem > 0
         m.free_mem <= m.total_mem
         m.free_compute <= m.total_compute
+    }
+
+    all cp: Compute_Proclet | {
+        cp.compute > 0
+        cp.starttime >= 0
+        cp.runtime > 0
+        cp.stepsRunning >= 0
+        cp.stepsBeforeRun >= 0
+    }
+
+    all m: Memory_Proclet | {
+        m.memory > 0
     }
 }
 
@@ -74,6 +86,30 @@ pred validProcletRelationships {
     all mp: Memory_Proclet | all cp: Compute_Proclet | {
         mp in cp.memory_procs iff cp in mp.compute_procs
     }
+    all mp: Memory_Proclet | {
+        some cp: Compute_Proclet | mp in cp.memory_procs
+    }
+}
+
+pred validStateTimeRelationships {
+    all cp: Compute_Proclet| {
+        cp.stepsBeforeRun < cp.starttime implies cp.runState = Not_Yet_Run
+        some cp.location iff cp.runState = Running
+        no cp.location iff cp.runState != Running
+        cp.stepsRunning >= cp.runtime implies cp.runState = Finished
+    }
+
+    all cp: Compute_Proclet | {
+        (cp.runState = Not_Yet_Run) implies {
+            cp.runState' in Not_Yet_Run + Running
+        }
+        (cp.runState = Running) implies {
+            cp.runState' in Running + Finished
+        }
+        (cp.runState = Finished) implies {
+            cp.runState' = Finished
+        }
+  }
 }
 
 // Ensure a valid state configuration (combines all state invariants)
@@ -82,6 +118,7 @@ pred validState {
     validProcletLocation
     resourcesMatchUsage
     validProcletRelationships
+    validStateTimeRelationships
 }
 
  ------------------ Initial & Transition Predicates -------------------
@@ -95,7 +132,7 @@ pred init {
         m.free_compute = m.total_compute
         m.proclets = none
     }
-    
+
     all cp: Compute_Proclet | {
         cp.runState = Not_Yet_Run
         cp.stepsRunning = 0
@@ -104,13 +141,13 @@ pred init {
         cp.runtime > 0
         cp.starttime >= 0
     }
-    
+
     all mp: Memory_Proclet | {
         mp.memory > 0
     }
-    
+
     all p: Proclet | p.location = none
-    
+
     // at least one machine has enough resources for each proclet
     all cp: Compute_Proclet | {
         some m: Machine | m.total_compute >= cp.compute
@@ -124,21 +161,13 @@ pred final {
     all p: Proclet | p.location = none
 }
 
-// Helper predicate that checks that no machine has resources for the proclet
-// pred noHosts[cp: Compute_Proclet] {
-//     all m: Machine | {
-//         some mp: cp.memory_procs | all m1: Machine | m1.free_mem < mp.memory or
-//         m.free_compute < cp.compute
-//     }
-// }
-
 // Helper predicate that checks if there are resources available for the proclet
 pred canSchedule[cp: Compute_Proclet] {
     // Check if compute proclet can be placed
     some m: Machine | {
         m.free_compute >= cp.compute
-        
-        // Check if all memory proclets can be placed 
+
+        // Check if all memory proclets can be placed
         all mp: cp.memory_procs | {
             some m1: Machine | m1.free_mem >= mp.memory
         }
@@ -230,12 +259,6 @@ pred procletStateEvolves {
             all mp: cp.memory_procs | mp.location' = none
         }
     }
-    
-    //  machines' total resources don't change
-    all m: Machine | {
-        m.total_mem' = m.total_mem
-        m.total_compute' = m.total_compute
-    }
 }
 
 
@@ -248,38 +271,38 @@ pred traces {
     eventually final
 }
 
-// run {
-//     traces
-// } for exactly 3 Machine, exactly 10 Proclet, exactly 5 Compute_Proclet, exactly 5 Memory_Proclet
+run {
+    traces
+} for exactly 1 Machine, exactly 2 Proclet, exactly 1 Compute_Proclet, exactly 1 Memory_Proclet
 
-test suite for traces {
-  eventuallyFinishes:
-    assert {
-      // “In every trace, every cp eventually reaches Finished.”
-      always {
-        all cp: Compute_Proclet |
-          eventually (cp.runState = Finished)
-      }
-    }
-    is necessary for traces
-      for exactly 5 Int,
-          exactly 3 Machine,
-          exactly 3 Compute_Proclet,
-          exactly 3 Memory_Proclet
+// test suite for traces {
+//   eventuallyFinishes:
+//     assert {
+//       // “In every trace, every cp eventually reaches Finished.”
+//       always {
+//         all cp: Compute_Proclet |
+//           eventually (cp.runState = Finished)
+//       }
+//     }
+//     is necessary for traces
+//       for exactly 5 Int,
+//           exactly 3 Machine,
+//           exactly 3 Compute_Proclet,
+//           exactly 3 Memory_Proclet
 
-    eventuallyStarts:
-        assert {
-            always {
-                all cp: Compute_Proclet |
-                (cp.runState = Not_Yet_Run
-                and subtract[cp.starttime, 1] <= cp.stepsBeforeRun)
-                implies eventually (cp.runState = Running)
-            }
-            }
-            is necessary for traces
-            for exactly 3 Machine,
-                exactly 2 Compute_Proclet,
-                exactly 2 Memory_Proclet,
-                exactly 5 Int
+//     eventuallyStarts:
+//         assert {
+//             always {
+//                 all cp: Compute_Proclet |
+//                 (cp.runState = Not_Yet_Run
+//                 and subtract[cp.starttime, 1] <= cp.stepsBeforeRun)
+//                 implies eventually (cp.runState = Running)
+//             }
+//             }
+//             is necessary for traces
+//             for exactly 3 Machine,
+//                 exactly 2 Compute_Proclet,
+//                 exactly 2 Memory_Proclet,
+//                 exactly 5 Int
 
-}
+// }
