@@ -49,7 +49,7 @@ pred validResources {
 
     all cp: Compute_Proclet | {
         cp.compute > 0
-        cp.starttime >= 0
+        cp.starttime > 0
         cp.runtime > 0
         cp.stepsRunning >= 0
         cp.stepsBeforeRun >= 0
@@ -94,7 +94,8 @@ pred validProcletRelationships {
 pred validStateTimeRelationships {
     all cp: Compute_Proclet| {
         cp.stepsBeforeRun < cp.starttime implies cp.runState = Not_Yet_Run
-        some cp.location iff cp.runState = Running
+        some cp.location implies cp.runState = Running
+        cp.runState = Running implies some cp.location
         no cp.location iff cp.runState != Running
         cp.stepsRunning >= cp.runtime implies cp.runState = Finished
     }
@@ -182,8 +183,8 @@ pred procletStateEvolves {
             cp.runState' = Not_Yet_Run
             cp.location' = none
             all mp: cp.memory_procs | mp.location' = none
-            cp.stepsBeforeRun' = add[cp.stepsBeforeRun, 1]
-            cp.stepsRunning' = cp.stepsRunning
+            //cp.stepsBeforeRun' = add[cp.stepsBeforeRun, 1]
+            //cp.stepsRunning' = cp.stepsRunning
         } and
 
         // Case 2: eligible to start but no resources available yet
@@ -191,8 +192,8 @@ pred procletStateEvolves {
             cp.runState' = Not_Yet_Run
             cp.location' = none
             all mp: cp.memory_procs | mp.location' = none
-            cp.stepsBeforeRun' = add[cp.stepsBeforeRun, 1]
-            cp.stepsRunning' = cp.stepsRunning
+            //cp.stepsBeforeRun' = add[cp.stepsBeforeRun, 1]
+            //cp.stepsRunning' = cp.stepsRunning
         } and
 
         // Case 3: eligible to start and resources available
@@ -204,8 +205,8 @@ pred procletStateEvolves {
                 cp.location' = m
                 m.free_compute' = subtract[m.free_compute, cp.compute]
                 m.proclets' = m.proclets + cp
-                cp.stepsRunning' = 0  // Reset counter as it just started
-                cp.stepsBeforeRun' = cp.stepsBeforeRun
+                //cp.stepsRunning' = cp.stepsRunning // Reset counter as it just started
+                //cp.stepsBeforeRun' = cp.stepsBeforeRun
 
                 // Place corresponding memory proclets and update states
                 all mp: cp.memory_procs | {
@@ -220,16 +221,16 @@ pred procletStateEvolves {
         } and
 
         // Case 4: Running and not finishing yet
-        (cp.runState = Running and cp.stepsRunning < subtract[cp.runtime, 1]) implies {
+        (cp.runState = Running and cp.stepsRunning < cp.runtime) implies {
             cp.runState' = Running
             cp.location' = cp.location
             all mp: cp.memory_procs | mp.location' = mp.location
-            cp.stepsRunning' = add[cp.stepsRunning, 1]
-            cp.stepsBeforeRun' = cp.stepsBeforeRun
+            //cp.stepsRunning' = add[cp.stepsRunning, 1]
+            //cp.stepsBeforeRun' = cp.stepsBeforeRun
         } and
 
         // Case 5: Running and finishing on next time tick
-        (cp.runState = Running and cp.stepsRunning >= subtract[cp.runtime, 1]) implies {
+        (cp.runState = Running and cp.stepsRunning >= cp.runtime) implies {
             // Remove compute proclet and update state and machine
             cp.runState' = Finished
             let oldLocation = cp.location | {
@@ -237,8 +238,8 @@ pred procletStateEvolves {
                 oldLocation.free_compute' = add[oldLocation.free_compute, cp.compute]
                 oldLocation.proclets' = oldLocation.proclets - cp
             }
-            cp.stepsRunning' = cp.stepsRunning
-            cp.stepsBeforeRun' = cp.stepsBeforeRun
+            //cp.stepsRunning' = cp.stepsRunning
+            //cp.stepsBeforeRun' = cp.stepsBeforeRun
 
             // Remove corresponding memory proclets and update states
             all mp: cp.memory_procs | {
@@ -254,10 +255,19 @@ pred procletStateEvolves {
         (cp.runState = Finished) implies {
             cp.runState' = Finished
             cp.location' = none
-            cp.stepsRunning' = cp.stepsRunning
-            cp.stepsBeforeRun' = cp.stepsBeforeRun
+            //cp.stepsRunning' = cp.stepsRunning
+            //cp.stepsBeforeRun' = cp.stepsBeforeRun
             all mp: cp.memory_procs | mp.location' = none
         }
+    }
+}
+
+pred updateInternalVariables {
+    all cp: Compute_Proclet {
+        (cp.runState = Running or cp.runState = Finished) implies cp.stepsBeforeRun' = cp.stepsBeforeRun
+        cp.runState = Not_Yet_Run implies cp.stepsBeforeRun' = add[cp.stepsBeforeRun, 1]
+        (cp.runState = Not_Yet_Run or cp.runState = Finished) implies cp.stepsRunning' = cp.stepsRunning
+        cp.runState = Running implies cp.stepsRunning' = add[cp.stepsRunning, 1]
     }
 }
 
@@ -267,6 +277,7 @@ pred traces {
     always {
         validState
         procletStateEvolves
+        updateInternalVariables
     }
     eventually final
 }
